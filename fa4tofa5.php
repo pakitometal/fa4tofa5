@@ -24,8 +24,8 @@
 */
 
 	if ( 2 > count($argv) ) { echo 'Usage: '.$argv[0]. ' DIRECTORY [FILE_EXTENSION]'; exit; }
-	if ( !is_dir($argv[1]) ) { echo 'ERROR: directory '.argv[1].' not found'; exit; }
-	$file_glob = ( !empty($argv[2]) ) ? '*.'.$argv[2] : '*.php';
+	if ( !is_dir($argv[1]) ) { echo 'ERROR: directory '.$argv[1].' not found'; exit; }
+	$extension = $argv[2] ?? 'php';
 
 	$icons = [
 		 '500px' => [ 'prefix' => 'fab', 'class' => '500px' ]
@@ -815,26 +815,31 @@
 		,'youtube-play' => [ 'prefix' => 'fab', 'class' => 'youtube' ]
 		,'youtube-square' => [ 'prefix' => 'fab', 'class' => 'youtube' ]
 	];
-	$class_delimiters = [ '[[:blank:]]', '"', '\'' ];
 
 	echo '['.date('Y-m-d H:i:s').'] Start'.PHP_EOL;
+	$class_delimiters = [ '[[:blank:]]', '"', '\'' ];
 	$search_regexp = $match_regexp = $replace_regexp = [];
 	foreach ( $icons as $old_icon => $new_icon ) {
-		$search_regexp[] = 'fa[[:blank:]]fa-'.$old_icon;
-		$match_regexp[] = '!'.end($search_regexp).'('.implode('|', $class_delimiters).')!';
+		$match_regexp[] = '!fa[[:blank:]]fa-'.$old_icon.'('.implode('|', $class_delimiters).')!';
 		$replace_string[] = $new_icon['prefix'].' fa-'.$new_icon['class'].'$1';
 	}
-	echo '['.date('Y-m-d H:i:s').'] Searching files to modify...'.PHP_EOL;
-	$files = array_filter(explode(PHP_EOL, shell_exec('grep -i -e '.implode(' -e ', $search_regexp).' --include='.$file_glob.' -r '.$argv[1].' | awk -F \':\' \'{print $1}\' | sort -u')));
-	echo '['.date('Y-m-d H:i:s').'] Found '.count($files).' files to modify'.PHP_EOL;
 
+	echo '['.date('Y-m-d H:i:s').'] Searching files to modify...'.PHP_EOL;
+	$directory = new RecursiveDirectoryIterator($argv[1]);
+	$iterator = new RecursiveIteratorIterator($directory);
+	$files = new RegexIterator($iterator, '!^.+\.'.$extension.'$!i', RecursiveRegexIterator::GET_MATCH);
+	$modified_files = [];
 	foreach ( $files as $file ) {
-		echo '['.date('Y-m-d H:i:s').'] Processing file '.$file.'...'.PHP_EOL;
+		$file = array_shift($file);
 		$file_contents = file_get_contents($file);
+		if ( !preg_match('!fa[[:blank:]]fa-!', $file_contents) ) { continue; }
+		echo '['.date('Y-m-d H:i:s').'] Processing file '.$file.'...'.PHP_EOL;
 		$replaced_file_contents = preg_replace($match_regexp, $replace_string, $file_contents, -1, $count);
 		if ( $count ) { file_put_contents($file, $replaced_file_contents); }
 		echo '['.date('Y-m-d H:i:s').'] File '.$file.' processed. '.$count.' replaces done'.PHP_EOL;
+		$modified_files[] = $file;
 	}
-
+	if ( $modified_files ) { echo '['.date('Y-m-d H:i:s').'] Modified the following '.count($modified_files).' files:'.PHP_EOL.print_r($modified_files, true).PHP_EOL; }
+	else { echo '['.date('Y-m-d H:i:s').'] No files were modified'.PHP_EOL; }
 	echo '['.date('Y-m-d H:i:s').'] Finished'.PHP_EOL;
 	exit;
