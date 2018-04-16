@@ -1,5 +1,5 @@
 # fa4tofa5
-Translates FontAwesome 4.7.x class names to their equivalents
+Translates FontAwesome 4.7.x class names to their equivalents in FontAwesome 5.0.x
 
 # Usage
 ```console
